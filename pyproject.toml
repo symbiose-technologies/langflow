@@ -9,7 +9,7 @@ maintainers = [
     "Lucas Eduoli <lucaseduoli@gmail.com>",
     "Otávio Anovazzi <otavio2204@gmail.com>",
 ]
-repository = "https://github.com/logspace-ai/langflow"
+repository = "https://github.com/symbiose-technologies/langflow"
 license = "MIT"
 readme = "README.md"
 keywords = ["nlp", "langchain", "openai", "gpt", "gui"]
@@ -22,8 +22,8 @@ langflow = "langflow.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-fastapi = "^0.92.0"
-uvicorn = "^0.20.0"
+fastapi = "^0.95.0"
+uvicorn = "^0.21.1"
 beautifulsoup4 = "^4.11.2"
 google-search-results = "^2.4.1"
 google-api-python-client = "^2.79.0"
