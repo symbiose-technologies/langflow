@@ -29,9 +29,15 @@ run_frontend:
 run_backend:
 	poetry run uvicorn langflow.main:app --port 5003 --reload
 
+dev_run_backend:
+	poetry run uvicorn langflow.main:app --host 0.0.0.0 --port 5003 --reload
+
 build_frontend:
 	cd src/frontend && CI='' npm run build
 	cp -r src/frontend/build src/backend/langflow/frontend
+
+build_backend:
+	poetry build --format sdist
 
 build:
 	make install_frontend
@@ -39,6 +45,7 @@ build:
 	poetry build --format sdist
 	rm -rf src/backend/langflow/frontend
 
+#to build execute: make dev build=1
 dev:
 	make install_frontend
 ifeq ($(build),1)

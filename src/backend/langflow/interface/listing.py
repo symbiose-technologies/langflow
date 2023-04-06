@@ -1,3 +1,4 @@
+import logging
 from langchain import agents, chains, prompts
 from langchain.agents.load_tools import get_all_tool_names
 
@@ -5,6 +6,7 @@ from langflow.custom import customs
 from langflow.interface.custom_lists import (
     llm_type_to_cls_dict,
     memory_type_to_cls_dict,
+    tool_type_to_cls_dict,
 )
 from langflow.settings import settings
 from langflow.utils import util
@@ -45,13 +47,23 @@ def list_prompts():
 def list_tools():
     """List all load tools"""
 
-    tools = []
+    # tools = [
+    #     tool.__name__
+    #     for tool in tool_type_to_cls_dict.values()
+    #     if tool.__name__ in settings.tools or settings.dev
+    # ]
+    # print(tools)
+    # return tools
 
+    tools = []
     for tool in get_all_tool_names():
         tool_params = util.get_tool_params(util.get_tools_dict(tool))
         if tool_params and tool_params["name"] in settings.tools or settings.dev:
-            tools.append(tool_params["name"])
-
+            if tool_params is not None:
+                tools.append(tool_params["name"])
+            else:
+                print(f'No tool params for {tool}!')
+    print(tools)
     return tools
 
 
@@ -66,12 +78,15 @@ def list_llms():
 
 def list_chain_types():
     """List all chain types"""
-    return [
+    chain_types = [
         chain.__annotations__["return"].__name__
+        # chain.__name__
         for chain in chains.loading.type_to_loader_dict.values()
+        # if chain.__name__ in settings.chains or settings.dev
         if chain.__annotations__["return"].__name__ in settings.chains or settings.dev
     ]
-
+    print(chain_types)
+    return chain_types
 
 def list_memories():
     """List all memory types"""

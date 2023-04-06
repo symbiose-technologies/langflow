@@ -13,6 +13,7 @@ from langflow.custom import customs
 from langflow.interface.custom_lists import (
     llm_type_to_cls_dict,
     memory_type_to_cls_dict,
+    tool_type_to_cls_dict,
 )
 from langflow.utils import util
 
@@ -31,10 +32,12 @@ def get_signature(name: str, object_type: str):
 
 def get_chain_signature(name: str):
     """Get the chain type by signature."""
+    print(f'Get Chain Signature: ${name}')
     try:
         return util.build_template_from_function(
             name, chains.loading.type_to_loader_dict
         )
+
     except ValueError as exc:
         raise ValueError("Chain not found") from exc
 
@@ -74,10 +77,18 @@ def get_memory_signature(name: str):
     except ValueError as exc:
         raise ValueError("Memory not found") from exc
 
+def get_tool_signature2(name: str):
+    """Get the signature of a tool."""
+    try:
+        return util.build_template_from_class(name, tool_type_to_cls_dict)
+    except ValueError as exc:
+        raise ValueError("Tool not found") from exc
+
+
 
 def get_tool_signature(name: str):
     """Get the signature of a tool."""
-
+    print(f'Get Tool Signature: ${name}')
     all_tools = {}
     for tool in get_all_tool_names():
         if tool_params := util.get_tool_params(util.get_tools_dict(tool)):
@@ -85,7 +96,7 @@ def get_tool_signature(name: str):
 
     # Raise error if name is not in tools
     if name not in all_tools.keys():
-        raise ValueError("Tool not found")
+        raise ValueError(f'Tool not found with name "{name}"')
 
     type_dict = {
         "str": {

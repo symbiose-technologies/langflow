@@ -13,6 +13,30 @@ from langchain.agents.load_tools import (
 
 from langflow.utils import constants
 
+from langchain.agents.tools import Tool
+from langchain.callbacks.base import BaseCallbackManager
+from langchain.chains.api import news_docs, open_meteo_docs, tmdb_docs
+from langchain.chains.api.base import APIChain
+from langchain.chains.llm_math.base import LLMMathChain
+from langchain.chains.pal.base import PALChain
+from langchain.llms.base import BaseLLM
+from langchain.requests import RequestsWrapper
+from langchain.tools.base import BaseTool
+from langchain.tools.bing_search.tool import BingSearchRun
+from langchain.tools.google_search.tool import GoogleSearchResults, GoogleSearchRun
+from langchain.tools.python.tool import PythonREPLTool
+from langchain.tools.requests.tool import RequestsGetTool
+from langchain.tools.wikipedia.tool import WikipediaQueryRun
+from langchain.tools.wolfram_alpha.tool import WolframAlphaQueryRun
+from langchain.utilities.bash import BashProcess
+from langchain.utilities.bing_search import BingSearchAPIWrapper
+from langchain.utilities.google_search import GoogleSearchAPIWrapper
+from langchain.utilities.google_serper import GoogleSerperAPIWrapper
+from langchain.utilities.searx_search import SearxSearchWrapper
+from langchain.utilities.serpapi import SerpAPIWrapper
+from langchain.utilities.wikipedia import WikipediaAPIWrapper
+from langchain.utilities.wolfram_alpha import WolframAlphaAPIWrapper
+
 
 def build_template_from_function(name: str, type_to_loader_dict: Dict):
     classes = [
@@ -136,6 +160,7 @@ def get_tools_dict(name: Optional[str] = None):
         **{k: v[0] for k, v in _EXTRA_LLM_TOOLS.items()},  # type: ignore
         **{k: v[0] for k, v in _EXTRA_OPTIONAL_TOOLS.items()},
     }
+    # print(f'Found tools: {tools}')
     return tools[name] if name else tools
 
 
@@ -149,6 +174,7 @@ def get_tool_params(func, **kwargs):
         if isinstance(node, ast.Return):
             tool = node.value
             if isinstance(tool, ast.Call):
+                print(f'Found tool {tool.func.id} with kwargs {tool.keywords}')
                 if tool.func.id == "Tool":
                     if tool.keywords:
                         tool_params = {}
@@ -167,10 +193,15 @@ def get_tool_params(func, **kwargs):
                 else:
                     # get the class object from the return statement
                     try:
+                        #include the kwargs in the compile statement
+
                         class_obj = eval(
-                            compile(ast.Expression(tool), "<string>", "eval")
+                            compile(ast.Expression(tool), "<string>", "eval"),
+                            globals(),
+                            {"kwargs": kwargs}
                         )
-                    except Exception:
+                    except Exception as e:
+                        print("Error:", e)
                         return None
 
                     return {
