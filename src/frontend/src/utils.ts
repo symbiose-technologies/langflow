@@ -5,10 +5,15 @@ import {
   LightBulbIcon,
   CommandLineIcon,
   WrenchScrewdriverIcon,
+  WrenchIcon,
   ComputerDesktopIcon,
   Bars3CenterLeftIcon,
+  GiftIcon,
   PaperClipIcon,
   QuestionMarkCircleIcon,
+  FingerPrintIcon,
+  ScissorsIcon,
+  CircleStackIcon
 } from "@heroicons/react/24/outline";
 import { Connection, Edge, Node, ReactFlowInstance } from "reactflow";
 import { FlowType } from "./types/flow";
@@ -70,11 +75,16 @@ export const nodeColors: {[char: string]: string} = {
   chains: "#FE7500",
   agents: "#903BBE",
   tools: "#FF3434",
-  memories: "#FF9135",
+  memories: "#F5B85A",
   advanced: "#000000",
   chat: "#454173",
   thought:"#272541",
-  docloaders:"#FF9135",
+  embeddings:"#42BAA7",
+  documentloaders:"#7AAE42",
+  vectorstores: "#AA8742",
+  textsplitters: "#B47CB5",
+  toolkits:"#DB2C2C",
+  wrappers:"#E6277A",
   unknown:"#9CA3AF"
 };
 
@@ -87,7 +97,12 @@ export const nodeNames:{[char: string]: string} = {
   memories: "Memories",
   advanced: "Advanced",
   chat: "Chat",
-  docloaders:"Document Loader",
+  embeddings: "Embeddings",
+  documentloaders: "Document Loaders",
+  vectorstores: "Vector Stores",
+  toolkits:"Toolkits",
+  wrappers:"Wrappers",
+  textsplitters: "Text Splitters",
   unknown:"Unknown"
 };
 
@@ -97,10 +112,15 @@ export const nodeIcons:{[char: string]: React.ForwardRefExoticComponent<React.SV
   memories: CpuChipIcon,
   llms: LightBulbIcon,
   prompts: CommandLineIcon,
-  tools: WrenchScrewdriverIcon,
+  tools: WrenchIcon,
   advanced: ComputerDesktopIcon,
   chat: Bars3CenterLeftIcon,
-  docloaders:Bars3CenterLeftIcon,
+  embeddings:FingerPrintIcon,
+  documentloaders:PaperClipIcon,
+  vectorstores: CircleStackIcon,
+  toolkits:WrenchScrewdriverIcon,
+  textsplitters:ScissorsIcon,
+  wrappers:GiftIcon,
   unknown:QuestionMarkCircleIcon
 };
 
