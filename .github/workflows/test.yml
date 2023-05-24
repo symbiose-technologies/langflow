@@ -16,7 +16,6 @@ jobs:
       matrix:
         python-version:
           - "3.10"
-          - "3.11"
     steps:
       - uses: actions/checkout@v3
       - name: Install poetry
@@ -30,4 +29,4 @@ jobs:
         run: poetry install
       - name: Run unit tests
         run: |
-          make test
+          make tests

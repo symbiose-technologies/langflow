@@ -1,23 +1,36 @@
-import { createContext, useEffect, useState, useRef, ReactNode, useContext } from "react";
-import { FlowType } from "../types/flow";
-import { TabsContextType } from "../types/tabs";
-import { normalCaseToSnakeCase } from "../utils";
+import {
+	createContext,
+	useEffect,
+	useState,
+	useRef,
+	ReactNode,
+	useContext,
+} from "react";
+import { FlowType, NodeType } from "../types/flow";
+import { LangFlowState, TabsContextType } from "../types/tabs";
+import { normalCaseToSnakeCase, updateObject, updateTemplate } from "../utils";
 import { alertContext } from "./alertContext";
+import { typesContext } from "./typesContext";
+import { APITemplateType, TemplateVariableType } from "../types/api";
+import { v4 as uuidv4 } from "uuid";
+import { addEdge } from "reactflow";
 
 const TabsContextInitialValue: TabsContextType = {
-	save:()=>{},
+	save: () => {},
 	tabIndex: 0,
 	setTabIndex: (index: number) => {},
 	flows: [],
 	removeFlow: (id: string) => {},
 	addFlow: (flowData?: any) => {},
 	updateFlow: (newFlow: FlowType) => {},
-	incrementNodeId: () => 0,
-	downloadFlow: (flow:FlowType) => {},
+	incrementNodeId: () => uuidv4(),
+	downloadFlow: (flow: FlowType) => {},
 	uploadFlow: () => {},
-	lockChat: false,
-	setLockChat:(prevState:boolean)=>{},
-	hardReset:()=>{},
+	hardReset: () => {},
+	disableCopyPaste:false,
+	setDisableCopyPaste:(state:boolean)=>{},
+	getNodeId: () => "",
+	paste: (selection: {nodes: any, edges: any}, position: {x: number, y: number}) => {},
 };
 
 export const TabsContext = createContext<TabsContextType>(
@@ -25,51 +38,65 @@ export const TabsContext = createContext<TabsContextType>(
 );
 
 export function TabsProvider({ children }: { children: ReactNode }) {
-	const {setNoticeData} = useContext(alertContext)
+	const { setNoticeData } = useContext(alertContext);
 	const [tabIndex, setTabIndex] = useState(0);
 	const [flows, setFlows] = useState<Array<FlowType>>([]);
-	const [id, setId] = useState(0);
-	const [lockChat, setLockChat] = useState(false);
+	const [id, setId] = useState(uuidv4());
+	const { templates, reactFlowInstance } = useContext(typesContext);
 
-	const newNodeId = useRef(0);
+	const newNodeId = useRef(uuidv4());
 	function incrementNodeId() {
-		newNodeId.current = newNodeId.current + 1;
+		newNodeId.current = uuidv4();
 		return newNodeId.current;
 	}
-	function save(){
+	function save() {
 		if (flows.length !== 0)
-		window.localStorage.setItem(
-			"tabsData",
-			JSON.stringify({ tabIndex, flows, id, nodeId: newNodeId.current })
-		);
+			window.localStorage.setItem(
+				"tabsData",
+				JSON.stringify({ tabIndex, flows, id})
+			);
 	}
 	useEffect(() => {
 		//save tabs locally
-		save()
+		// console.log(id)
+		save();
 	}, [flows, id, tabIndex, newNodeId]);
-
-
 
 	useEffect(() => {
 		//get tabs locally saved
 		let cookie = window.localStorage.getItem("tabsData");
-		if (cookie) {
-			let cookieObject = JSON.parse(cookie);
+		if (cookie && Object.keys(templates).length > 0) {
+			let cookieObject: LangFlowState = JSON.parse(cookie);
+			cookieObject.flows.forEach((flow) => {
+				flow.data.nodes.forEach((node) => {
+					if (Object.keys(templates[node.data.type]["template"]).length > 0) {
+						node.data.node.template = updateTemplate(
+							templates[node.data.type][
+								"template"
+							] as unknown as APITemplateType,
+
+							node.data.node.template as APITemplateType
+						);
+					}
+				});
+			});
 			setTabIndex(cookieObject.tabIndex);
 			setFlows(cookieObject.flows);
 			setId(cookieObject.id);
-			newNodeId.current = cookieObject.nodeId;
 		}
-	}, []);
-	function hardReset(){
-		newNodeId.current=0;
-		setTabIndex(0);setFlows([]);setId(0);
+	}, [templates]);
+
+	function hardReset() {
+		newNodeId.current = uuidv4();
+		setTabIndex(0);
+		setFlows([]);
+		setId(uuidv4());
 	}
 
 	/**
 	 * Downloads the current flow as a JSON file
 	 */
-	function downloadFlow(flow:FlowType) {
+	function downloadFlow(flow: FlowType) {
 		// create a data URI with the current flow data
 		const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(
 			JSON.stringify(flow)
@@ -78,12 +105,18 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 		// create a link element and set its properties
 		const link = document.createElement("a");
 		link.href = jsonString;
-		link.download = `${normalCaseToSnakeCase(flows[tabIndex].name)}.json`;
+		link.download = `${flows[tabIndex].name}.json`;
 
 		// simulate a click on the link element to trigger the download
 		link.click();
-		setNoticeData({title:"Warning: Critical data,JSON file may including API keys."})
+		setNoticeData({
+			title: "Warning: Critical data,JSON file may including API keys.",
+		});
 	}
+
+	function getNodeId() {
+		return `dndnode_` + incrementNodeId();
+	  }
 
 	/**
 	 * Creates a file input and listens to a change event to upload a JSON flow file.
@@ -103,7 +136,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 				// read the file as text
 				file.text().then((text) => {
 					// parse the text into a JSON object
-					addFlow(JSON.parse(text));
+					let flow: FlowType = JSON.parse(text);
+
+					addFlow(flow);
 				});
 			}
 		};
@@ -136,24 +171,118 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 	 * Add a new flow to the list of flows.
 	 * @param flow Optional flow to add.
 	 */
+
+	function paste(selectionInstance, position){
+		console.log(position);
+		console.log(selectionInstance)
+		let minimumX = Infinity;
+		let minimumY = Infinity;
+		let idsMap = {};
+		let nodes = reactFlowInstance.getNodes();
+		let edges = reactFlowInstance.getEdges();
+		selectionInstance.nodes.forEach((n) => {
+		  if (n.position.y < minimumY) {
+			minimumY = n.position.y;
+		  }
+		  if (n.position.x < minimumX) {
+			minimumX = n.position.x;
+		  }
+		});
+
+		const insidePosition = reactFlowInstance.project(position);
+	
+		selectionInstance.nodes.forEach((n) => {
+		  // Generate a unique node ID
+		  let newId = getNodeId();
+		  idsMap[n.id] = newId;
+	
+		  // Create a new node object
+		  const newNode: NodeType = {
+			id: newId,
+			type: "genericNode",
+			position: {
+			  x: insidePosition.x + n.position.x - minimumX,
+			  y: insidePosition.y + n.position.y - minimumY,
+			},
+			data: {
+			  ...n.data,
+			  id: newId,
+			},
+		  };
+	
+		  // Add the new node to the list of nodes in state
+			nodes = nodes
+			  .map((e) => ({ ...e, selected: false }))
+			  .concat({ ...newNode, selected: false })
+		  console.log(nodes);
+		});
+		reactFlowInstance.setNodes(nodes);
+	
+		selectionInstance.edges.forEach((e) => {
+		  let source = idsMap[e.source];
+		  let target = idsMap[e.target];
+		  let sourceHandleSplitted = e.sourceHandle.split("|");
+		  let sourceHandle =
+			sourceHandleSplitted[0] +
+			"|" +
+			source +
+			"|" +
+			sourceHandleSplitted.slice(2).join("|");
+		  let targetHandleSplitted = e.targetHandle.split("|");
+		  let targetHandle =
+			targetHandleSplitted.slice(0, -1).join("|") + "|" + target;
+		  let id =
+			"reactflow__edge-" +
+			source +
+			sourceHandle +
+			"-" +
+			target +
+			targetHandle;
+		  edges = addEdge(
+			  {
+				source,
+				target,
+				sourceHandle,
+				targetHandle,
+				id,
+				className: "animate-pulse",
+				selected: false,
+			  },
+			  edges.map((e) => ({ ...e, selected: false }))
+			);
+			console.log(edges);
+		});
+		reactFlowInstance.setEdges(edges);
+	  };
+	
 	function addFlow(flow?: FlowType) {
 		// Get data from the flow or set it to null if there's no flow provided.
 		const data = flow?.data ? flow.data : null;
-		const description = flow?.description?flow.description:""
+		const description = flow?.description ? flow.description : "";
 
+		if (data) {
+			data.nodes.forEach((node) => {
+				if (Object.keys(templates[node.data.type]["template"]).length > 0) {
+					node.data.node.template = updateTemplate(
+						templates[node.data.type]["template"] as unknown as APITemplateType,
+						node.data.node.template as APITemplateType
+					);
+				}
+			});
+		}
 		// Create a new flow with a default name if no flow is provided.
 		let newFlow: FlowType = {
 			description,
-			name: "New Flow",
-			id: id.toString(),
+			name: flow?.name ?? "New Flow",
+			id: uuidv4(),
 			data,
-			chat: flow ? flow.chat : [],
 		};
 
 		// Increment the ID counter.
-		setId((old) => old + 1);
+		setId(uuidv4());
 
 		// Add the new flow to the list of flows.
+		
 		setFlows((prevState) => {
 			const newFlows = [...prevState, newFlow];
 			return newFlows;
@@ -171,22 +300,22 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 			const newFlows = [...prevState];
 			const index = newFlows.findIndex((flow) => flow.id === newFlow.id);
 			if (index !== -1) {
-				newFlows[index].description = newFlow.description??""
+				newFlows[index].description = newFlow.description ?? "";
 				newFlows[index].data = newFlow.data;
 				newFlows[index].name = newFlow.name;
-				newFlows[index].chat = newFlow.chat;
 			}
 			return newFlows;
 		});
 	}
+	const [disableCopyPaste, setDisableCopyPaste] = useState(false);
 
 	return (
 		<TabsContext.Provider
 			value={{
+				disableCopyPaste,
+				setDisableCopyPaste,
 				save,
 				hardReset,
-				lockChat,
-				setLockChat,
 				tabIndex,
 				setTabIndex,
 				flows,
@@ -196,6 +325,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 				updateFlow,
 				downloadFlow,
 				uploadFlow,
+				getNodeId,
+				paste,
 			}}
 		>
 			{children}

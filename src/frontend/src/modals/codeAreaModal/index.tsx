@@ -7,10 +7,11 @@ import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-github";
 import "ace-builds/src-noconflict/theme-twilight";
 import "ace-builds/src-noconflict/ext-language_tools";
-import "ace-builds/webpack-resolver";
+// import "ace-builds/webpack-resolver";
 import { darkContext } from "../../contexts/darkContext";
 import { checkCode } from "../../controllers/API";
 import { alertContext } from "../../contexts/alertContext";
+import { TabsContext } from "../../contexts/tabsContext";
 export default function CodeAreaModal({
 	value,
 	setValue,
@@ -22,6 +23,7 @@ export default function CodeAreaModal({
 	const [code, setCode] = useState(value);
 	const { dark } = useContext(darkContext);
 	const { setErrorData, setSuccessData } = useContext(alertContext);
+	const { setDisableCopyPaste } = useContext(TabsContext);
 	const { closePopUp } = useContext(PopUpContext);
 	const ref = useRef();
 	function setModalOpen(x: boolean) {
@@ -65,9 +67,9 @@ export default function CodeAreaModal({
 						>
 							<Dialog.Panel className="relative flex flex-col justify-between transform h-[600px] overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-[700px]">
 								<div className=" z-50 absolute top-0 right-0 hidden pt-4 pr-4 sm:block">
-									<button
+								<button
 										type="button"
-										className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+										className="rounded-md text-gray-400 hover:text-gray-500"
 										onClick={() => {
 											setModalOpen(false);
 										}}
@@ -109,6 +111,12 @@ export default function CodeAreaModal({
 													onChange={(value) => {
 														setCode(value);
 													}}
+													onBlur={() => {
+														setDisableCopyPaste(false)
+													}}
+													onFocus={() => {
+														setDisableCopyPaste(true)
+													}}
 													className="h-full w-full rounded-lg"
 												/>
 											</div>
@@ -134,7 +142,7 @@ export default function CodeAreaModal({
 																	title: "Code is ready to run",
 																});
 																setModalOpen(false);
-																setValue(code)
+																setValue(code);
 															} else {
 																if (funcErrors.length !== 0) {
 																	setErrorData({
@@ -142,7 +150,7 @@ export default function CodeAreaModal({
 																		list: funcErrors,
 																	});
 																}
-																if(importsErrors.length!==0){
+																if (importsErrors.length !== 0) {
 																	setErrorData({
 																		title: "There is an error in your imports",
 																		list: importsErrors,
